@@ -65,7 +65,7 @@ class KNearestNeighbor(object):
         num_test = X.shape[0]
         num_train = self.X_train.shape[0]
         dists = np.zeros((num_test, num_train))
-        for i in tqdm(xrange(num_test)):
+        for i in xrange(num_test):
             for j in xrange(num_train):
             #####################################################################
             # TODO:                                                             #
@@ -73,11 +73,11 @@ class KNearestNeighbor(object):
             # training point, and store the result in dists[i, j]. You should   #
             # not use a loop over dimension.                                    #
             #####################################################################
-                minus = self.X_train[j,:] - X[i,:]
-                dists[i,j] = np.sqrt(np.sum(np.power(minus,2)))
+                dists[i,j] = np.sum((self.X_train[j,:] - X[i,:])**2)
             #####################################################################
             #                       END OF YOUR CODE                            #
             #####################################################################
+        dists = np.sqrt(dists)
         return dists
 
     def compute_distances_one_loop(self, X):
@@ -90,16 +90,17 @@ class KNearestNeighbor(object):
         num_test = X.shape[0]
         num_train = self.X_train.shape[0]
         dists = np.zeros((num_test, num_train))
-        for i in tqdm(xrange(num_test)):
+        for i in xrange(num_test):
           #######################################################################
           # TODO:                                                               #
           # Compute the l2 distance between the ith test point and all training #
           # points, and store the result in dists[i, :].                        #
           #######################################################################
-          dists[i] = np.sqrt(np.sum(np.power(self.X_train - X[i,:],2),axis=1))
+          dists[i] = np.sum((self.X_train - X[i,:])**2,axis=1)
           #######################################################################
           #                         END OF YOUR CODE                            #
           #######################################################################
+        dists = np.sqrt(dists)
         return dists
 
     def compute_distances_no_loops(self, X):
