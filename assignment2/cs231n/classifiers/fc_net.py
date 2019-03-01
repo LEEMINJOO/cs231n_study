@@ -178,22 +178,24 @@ class FullyConnectedNet(object):
         # parameters should be initialized to zero.                                #
         ############################################################################
         hidden_dims.append(num_classes)
-
         for i in range(self.num_layers):
             W = 'W{}'.format(i+1)
             b = 'b{}'.format(i+1)
-
             if i == 0 :
                 self.params[W] = weight_scale*np.random.randn(input_dim,hidden_dims[i])
             else :
                 self.params[W] = weight_scale*np.random.randn(hidden_dims[i-1],hidden_dims[i])
+                
+            if self.use_batchnorm :
+                if i != (self.num_layers-1):
+                    gamma = 'gamma{}'.format(i+1)
+                    beta = 'beta{}'.format(i+1)
+                    self.params[gamma] = np.ones(hidden_dims[i])
+                    self.params[beta] = np.zeros(hidden_dims[i])
+                    
             self.params[b] = np.zeros(hidden_dims[i])
 
-            if self.use_batchnorm :
-                gamma = 'gamma{}'.format(i+1)
-                beta = 'beta{}'.format(i+1)
-                self.params[gamma] = 1.0
-                self.params[beta] = 0.0
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -256,11 +258,23 @@ class FullyConnectedNet(object):
         for i in range(self.num_layers):
             W = 'W{}'.format(i+1)
             b = 'b{}'.format(i+1)
+
             if i == (self.num_layers-1):
                 hidden, hidden_cache = affine_forward(hidden, self.params[W], self.params[b])
+                hidden_cache_list.append(hidden_cache)
             else :
-                hidden, hidden_cache = affine_relu_forward(hidden, self.params[W], self.params[b])
-            hidden_cache_list.append(hidden_cache)
+                hidden, fc_cache = affine_forward(hidden, self.params[W], self.params[b])
+                if self.use_batchnorm:
+                    gamma = 'gamma{}'.format(i+1)
+                    beta = 'beta{}'.format(i+1)
+                    hidden, bn_cache = batchnorm_forward(hidden, self.params[gamma], self.params[beta], self.bn_params[i])      
+                hidden, relu_cache = relu_forward(hidden)
+                
+                if self.use_batchnorm:
+                    hidden_cache = (fc_cache, bn_cache, relu_cache)
+                else :
+                    hidden_cache = (fc_cache, relu_cache)
+                hidden_cache_list.append(hidden_cache)
         scores = hidden
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -295,11 +309,22 @@ class FullyConnectedNet(object):
             '''
             if i == 0:
                 dout, grads[W], grads[b] = affine_backward(dout, hidden_cache_list.pop())
-            else :
-                dout, grads[W], grads[b] = affine_relu_backward(dout, hidden_cache_list.pop())
+            else : 
+                if self.use_batchnorm:
+                    fc_cache, bn_cache, relu_cache = hidden_cache_list.pop()
+                else :
+                    fc_cache, relu_cache = hidden_cache_list.pop()
+                    
+                dout = relu_backward(dout, relu_cache)
+                if self.use_batchnorm:
+                    gamma = 'gamma{}'.format(self.num_layers-i)
+                    beta = 'beta{}'.format(self.num_layers-i)
+                    dout, grads[gamma], grads[beta] = batchnorm_backward(dout, bn_cache)
+                dout, grads[W], grads[b] = affine_backward(dout, fc_cache)
                 
-            loss += 0.5 * self.reg * np.sum(self.params[W]**2)
-            grads[W] += self.reg*self.params[W]
+            if not self.use_batchnorm:
+                loss += 0.5 * self.reg * np.sum(self.params[W]**2)
+                grads[W] += self.reg*self.params[W]
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
