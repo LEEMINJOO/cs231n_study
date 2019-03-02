@@ -275,6 +275,11 @@ class FullyConnectedNet(object):
                 else :
                     hidden_cache = (fc_cache, relu_cache)
                 hidden_cache_list.append(hidden_cache)
+                
+                if self.use_dropout:
+                    hidden, drop_cache = dropout_forward(hidden, self.dropout_param)
+                    hidden_cache_list.append(drop_cache)
+                    
         scores = hidden
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -310,6 +315,10 @@ class FullyConnectedNet(object):
             if i == 0:
                 dout, grads[W], grads[b] = affine_backward(dout, hidden_cache_list.pop())
             else : 
+                if self.use_dropout:
+                    drop_cache = hidden_cache_list.pop()
+                    dout = dropout_backward(dout, drop_cache)
+                    
                 if self.use_batchnorm:
                     fc_cache, bn_cache, relu_cache = hidden_cache_list.pop()
                 else :
