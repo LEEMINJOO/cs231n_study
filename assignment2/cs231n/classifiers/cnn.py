@@ -48,7 +48,15 @@ class ThreeLayerConvNet(object):
         # hidden affine layer, and keys 'W3' and 'b3' for the weights and biases   #
         # of the output affine layer.                                              #
         ############################################################################
-        pass
+        C, H, W = input_dim
+        self.params['W1'] = weight_scale * np.random.randn(num_filters,C,filter_size,filter_size)
+        self.params['b1'] = weight_scale * np.random.randn(num_filters)
+        Ht = H//2
+        Wt = W//2
+        self.params['W2'] = weight_scale * np.random.randn(num_filters*Ht*Wt,hidden_dim)
+        self.params['b2'] = weight_scale * np.random.randn(hidden_dim)
+        self.params['W3'] = weight_scale * np.random.randn(hidden_dim,num_classes)
+        self.params['b3'] = weight_scale * np.random.randn(num_classes)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -80,7 +88,15 @@ class ThreeLayerConvNet(object):
         # computing the class scores for X and storing them in the scores          #
         # variable.                                                                #
         ############################################################################
-        pass
+        out, cache_c = conv_forward_naive(X, W1, b1, conv_param)
+        out, cache_r1 = relu_forward(out)
+        out, cache_p = max_pool_forward_naive(out, pool_param)
+
+        out, cache_h1 = affine_forward(out, W2, b2)
+        out, cache_r2 = relu_forward(out)
+        
+        scores, cache_h2 = affine_forward(out, W3, b3)
+        
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -95,7 +111,15 @@ class ThreeLayerConvNet(object):
         # data loss using softmax, and make sure that grads[k] holds the gradients #
         # for self.params[k]. Don't forget to add L2 regularization!               #
         ############################################################################
-        pass
+        loss ,dscores = softmax_loss(scores,y)
+        loss += 0.5 * self.reg * (np.sum(self.params['W1']**2) + np.sum(self.params['W2']**2) + np.sum(self.params['W3']**2))
+        
+        dout, grads['W3'], grads['b3'] = affine_backward(dscores,cache_h2)
+        dout = relu_backward(dout, cache_r2)
+        dout, grads['W2'], grads['b2'] = affine_backward(dout,cache_h1)
+        dout = max_pool_backward_naive(dout, cache_p)
+        dout = relu_backward(dout, cache_r1)
+        dout, grads['W1'], grads['b1'] = conv_backward_naive(dout, cache_c)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
