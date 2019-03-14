@@ -251,7 +251,7 @@ def batchnorm_backward(dout, cache):
     
     dmom = dmom * 2 * (x - x_mean)
     
-    dx1 = dson1 + dmom
+    dx1 = dson + dmom
     
     dx2 = - (dson + dmom).sum(axis=0)
     dx2 = 1 / x.shape[0] * np.ones(x.shape) * dx2
@@ -470,7 +470,7 @@ def conv_backward_naive(dout, cache):
     F, C, HH, WW = w.shape
     
     db = np.transpose(dout,(1,0,2,3))
-    db = [ddb.sum() for ddb in db]
+    db = np.array([ddb.sum() for ddb in db])
     
     dx = np.zeros((x.shape))
     dw = np.zeros((w.shape))
@@ -589,8 +589,8 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
         old information is discarded completely at every time step, while
         momentum=1 means that new information is never incorporated. The
         default of momentum=0.9 should work well in most situations.
-      - running_mean: Array of shape (D,) giving running mean of features
-      - running_var Array of shape (D,) giving running variance of features
+      - running_mean: Array of shape (C,) giving running mean of features
+      - running_var Array of shape (C,) giving running variance of features
 
     Returns a tuple of:
     - out: Output data, of shape (N, C, H, W)
@@ -605,7 +605,11 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # version of batch normalization defined above. Your implementation should#
     # be very short; ours is less than five lines.                            #
     ###########################################################################
-    pass
+    x = np.transpose(x,(0,2,3,1)) # x.shape = N,H,W,C
+    x_re = x.reshape(-1,x.shape[3])
+    out_re, cache = batchnorm_forward(x_re, gamma, beta, bn_param)
+    out = out_re.reshape(x.shape)
+    out = np.transpose(out,(0,3,1,2))
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -635,7 +639,11 @@ def spatial_batchnorm_backward(dout, cache):
     # version of batch normalization defined above. Your implementation should#
     # be very short; ours is less than five lines.                            #
     ###########################################################################
-    pass
+    dout = np.transpose(dout,(0,2,3,1)) # dout.shape = N,H,W,C
+    dout_re = dout.reshape(-1,dout.shape[3])
+    dx_re, dgamma, dbeta = batchnorm_backward(dout_re, cache)
+    dx = dx_re.reshape(dout.shape)
+    dx = np.transpose(dx,(0,3,1,2))
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################

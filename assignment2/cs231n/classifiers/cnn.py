@@ -88,9 +88,9 @@ class ThreeLayerConvNet(object):
         # computing the class scores for X and storing them in the scores          #
         # variable.                                                                #
         ############################################################################
-        out, cache_c = conv_forward_naive(X, W1, b1, conv_param)
+        out, cache_c = conv_forward_fast(X, W1, b1, conv_param)
         out, cache_r1 = relu_forward(out)
-        out, cache_p = max_pool_forward_naive(out, pool_param)
+        out, cache_p = max_pool_forward_fast(out, pool_param)
 
         out, cache_h1 = affine_forward(out, W2, b2)
         out, cache_r2 = relu_forward(out)
@@ -117,9 +117,9 @@ class ThreeLayerConvNet(object):
         dout, grads['W3'], grads['b3'] = affine_backward(dscores,cache_h2)
         dout = relu_backward(dout, cache_r2)
         dout, grads['W2'], grads['b2'] = affine_backward(dout,cache_h1)
-        dout = max_pool_backward_naive(dout, cache_p)
+        dout = max_pool_backward_fast(dout, cache_p)
         dout = relu_backward(dout, cache_r1)
-        dout, grads['W1'], grads['b1'] = conv_backward_naive(dout, cache_c)
+        dout, grads['W1'], grads['b1'] = conv_backward_fast(dout, cache_c)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
