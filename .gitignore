@@ -1,2 +1,5 @@
 ﻿# Ignore forlder named 'datasets'
 datasets/
+
+# Ignore ipynb checkpoint
+**/*.ipynb_checkpoints/
