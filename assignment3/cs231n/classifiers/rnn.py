@@ -137,7 +137,19 @@ class CaptioningRNN(object):
         # defined above to store loss and gradients; grads[k] should give the      #
         # gradients for self.params[k].                                            #
         ############################################################################
-        pass
+        out1, cache1 = affine_forward(features, W_proj, b_proj)
+        out2, cache2 = word_embedding_forward(captions_in, W_embed)
+        if self.cell_type == 'rnn':
+            out3, cache3 = rnn_forward(out2, out1, Wx, Wh, b)     
+        out4, cache4 = temporal_affine_forward(out3, W_vocab, b_vocab)
+        
+        loss, dout = temporal_softmax_loss(out4, captions_out, mask, verbose=False)
+        
+        dout3, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dout, cache4)
+        if self.cell_type == 'rnn':
+            dout2, dout1, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dout3, cache3)
+        grads['W_embed'] = word_embedding_backward(dout2, cache2)
+        _, grads['W_proj'], grads['b_proj'] = affine_backward(dout1, cache1)        
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -199,7 +211,18 @@ class CaptioningRNN(object):
         # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
         # a loop.                                                                 #
         ###########################################################################
-        pass
+        '''
+        hidden,_ = affine_forward(features, W_proj, b_proj)
+        prev_x = np.ones((N, 1)) * self._start
+        
+        for i in range(max_length):
+            embed,_ = word_embedding_forward(prev_x, W_embed)
+            captaions[:,i] = prev_x
+            
+            if self.cell_type == 'rnn':
+                hidden, _ = rnn_step_forward(embed[:,0,:], hidden, Wx, Wh, b)     
+            prev_x, _ = temporal_affine_forward(hidden, W_vocab, b_vocab)
+        '''
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
