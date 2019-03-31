@@ -149,6 +149,7 @@ def rnn_backward(dh, cache):
     ##############################################################################
     N, T, H = dh.shape
     dx_list = []
+    
     for i in reversed(range(T)):
         if i==(T-1) :
             dxx, dh0, dWx, dWh, db = rnn_step_backward(dh[:,i,:], cache[i])            
@@ -157,7 +158,7 @@ def rnn_backward(dh, cache):
             dWx += dWxx
             dWh += dWhh
             db += dbb
-    dx_list.append(dxx)
+        dx_list.append(dxx)
     dx = np.stack(reversed(dx_list),axis=1)
     ##############################################################################
     #                               END OF YOUR CODE                             #
@@ -217,8 +218,10 @@ def word_embedding_backward(dout, cache):
     # HINT: Look up the function np.add.at                                       #
     ##############################################################################
     x, W = cache
-    dW = np.zeros_like(W)
-    np.add.at(dW, x, dout)
+    V = W.shape[0]
+    N, T, D = dout.shape
+    dW = np.zeros((V,D))
+    np.add.at(dW, x.reshape(N * T), dout.reshape(N * T, D))
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -264,7 +267,20 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
     # TODO: Implement the forward pass for a single timestep of an LSTM.        #
     # You may want to use the numerically stable sigmoid implementation above.  #
     #############################################################################
-    pass
+    N,D = x.shape
+    H = prev_h.shape[1]
+    
+    out = x.dot(Wx) + prev_h.dot(Wh) + b
+    
+    i = sigmoid(out[range(N),:H])
+    f = sigmoid(out[range(N),H:2*H])
+    o = sigmoid(out[range(N),2*H:3*H])
+    g = np.tanh(out[range(N),3*H:])
+    
+    next_c = f*prev_c + i*g
+    next_h = o*np.tanh(next_c)
+    
+    cache = (x, prev_h, prev_c, Wx, Wh, b, i,f,o,g)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -296,7 +312,38 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     # HINT: For sigmoid and tanh you can compute local derivatives in terms of  #
     # the output value from the nonlinearity.                                   #
     #############################################################################
-    pass
+    x, prev_h, prev_c, Wx, Wh, b, i,f,o,g = cache
+
+#    next_h = output_gate*np.tanh(next_c)
+    next_c = f*prev_c + i*g
+    do = dnext_h * np.tanh(next_c)
+    dnext_c += dnext_h*o*(1-pow(np.tanh(next_c),2))
+    
+#    next_c = forget_gate*prev_c + input_gate*gate_gate    
+    df = prev_c*dnext_c
+    dprev_c = f*dnext_c
+    di = g*dnext_c
+    dg = i*dnext_c
+    
+#    gate_gate = np.tanh(out[range(N),3*H:])    
+    dg *= 1 - pow(g,2)    
+#    output_gate = sigmoid(out[range(N),2*H:3*H])
+    do *= (1-o)*o    
+#    forget_gate = sigmoid(out[range(N),H:2*H])
+    df *= (1-f)*f
+#    input_gate = sigmoid(out[range(N),:H])
+    di *= (1-i)*i
+    
+#   out = x.dot(Wx) + prev_h.dot(Wh) + b    
+    dout = np.concatenate((di,df,do,dg),axis=1)
+    
+    dx = dout.dot(Wx.T)
+    dWx = x.T.dot(dout)    
+    dprev_h = dout.dot(Wh.T)
+    dWh = prev_h.T.dot(dout)    
+    db = dout.sum(axis=0)
+    
+    
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -331,7 +378,20 @@ def lstm_forward(x, h0, Wx, Wh, b):
     # TODO: Implement the forward pass for an LSTM over an entire timeseries.   #
     # You should use the lstm_step_forward function that you just defined.      #
     #############################################################################
-    pass
+    N, T, D = x.shape
+    H = h0.shape[1]
+    
+    h = np.zeros((N,T,H))
+    c = np.zeros((N,T,H))
+    c0 = np.zeros(h0.shape)
+    cache = []
+    
+    for i in range(T):
+        if i == 0 :
+            h[:,i,:], c[:,i,:], cache_i= lstm_step_forward(x[:,i,:], h0, c0, Wx, Wh, b)
+        else:
+            h[:,i,:], c[:,i,:], cache_i = lstm_step_forward(x[:,i,:], h[:,i-1,:], c[:,i-1,:], Wx, Wh, b)
+        cache.append(cache_i)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -359,7 +419,21 @@ def lstm_backward(dh, cache):
     # TODO: Implement the backward pass for an LSTM over an entire timeseries.  #
     # You should use the lstm_step_backward function that you just defined.     #
     #############################################################################
-    pass
+    N, T, H = dh.shape
+    dx_list = []
+    dc0 = 0
+    
+    for i in reversed(range(T)):
+        if i==(T-1) :
+            dxx, dh0, dc0, dWx, dWh, db = lstm_step_backward(dh[:,i,:], dc0, cache[i])     
+        else:
+            dxx, dh0, dc0, dWxx, dWhh, dbb = lstm_step_backward(dh[:,i,:]+dh0, dc0, cache[i])
+            dWx += dWxx
+            dWh += dWhh
+            db += dbb
+        dx_list.append(dxx)
+    dx = np.stack(reversed(dx_list),axis=1)
+
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -410,7 +484,6 @@ def temporal_affine_backward(dout, cache):
     dx = dout.reshape(N * T, M).dot(w.T).reshape(N, T, D)
     dw = dout.reshape(N * T, M).T.dot(x.reshape(N * T, D)).T
     db = dout.sum(axis=(0, 1))
-
     return dx, dw, db
 
 
